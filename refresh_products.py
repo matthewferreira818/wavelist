@@ -9,6 +9,7 @@ Requires a .env file (same folder) containing:
 """
 
 import json
+import os
 import re
 import urllib.request
 import urllib.error
@@ -83,8 +84,14 @@ def clean_name(name: str) -> str:
 
 
 def load_api_key() -> str:
+    env_key = os.environ.get("CJ_API_KEY")
+    if env_key:
+        return env_key
     if not ENV_FILE.exists():
-        raise SystemExit(f"Missing {ENV_FILE} — add a line: CJ_API_KEY=your-key")
+        raise SystemExit(
+            f"CJ_API_KEY not set. Set it as an environment variable, "
+            f"or add a line to {ENV_FILE}: CJ_API_KEY=your-key"
+        )
     for line in ENV_FILE.read_text().splitlines():
         line = line.strip()
         if line.startswith("CJ_API_KEY="):
