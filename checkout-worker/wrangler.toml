@@ -1,0 +1,7 @@
+name = "wavelist-checkout"
+main = "src/index.js"
+compatibility_date = "2026-07-01"
+
+kv_namespaces = [
+  { binding = "ORDERS_KV", id = "fa6af182bfa7446ea4bb54b7e1f8b476" }
+]

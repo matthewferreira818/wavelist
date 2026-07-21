@@ -1,3 +1,5 @@
+const CHECKOUT_API = "https://wavelist-checkout.wavelist-mf818.workers.dev";
+
 async function loadProducts() {
   const grid = document.getElementById("product-grid");
   const countEl = document.getElementById("product-count");
@@ -104,11 +106,59 @@ function buildCard(p) {
   trendEl.textContent = `Trend score ${trendScore}`;
 
   footer.append(priceEl, trendEl);
-  body.append(category, name, desc, footer);
+
+  const buyButton = document.createElement("button");
+  buyButton.className = "btn btn-primary card-buy";
+  buyButton.type = "button";
+  buyButton.textContent = "Buy now";
+  buyButton.addEventListener("click", () => startCheckout(p.id, buyButton));
+
+  body.append(category, name, desc, footer, buyButton);
   card.append(thumb, body);
 
   return card;
 }
 
+async function startCheckout(productId, button) {
+  const originalText = button.textContent;
+  button.disabled = true;
+  button.textContent = "Redirecting…";
+
+  try {
+    const res = await fetch(`${CHECKOUT_API}/create-checkout-session`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ productId }),
+    });
+    const data = await res.json();
+    if (!res.ok || !data.url) {
+      throw new Error(data.error || `Checkout request failed (${res.status})`);
+    }
+    window.location.href = data.url;
+  } catch (err) {
+    console.error(err);
+    button.disabled = false;
+    button.textContent = originalText;
+    alert("Couldn't start checkout. Please try again in a moment.");
+  }
+}
+
+function showOrderStatusBanner() {
+  const params = new URLSearchParams(window.location.search);
+  const main = document.querySelector("main");
+  if (params.get("success") === "1") {
+    const banner = document.createElement("div");
+    banner.className = "order-banner order-banner-success";
+    banner.textContent = "Payment received — thank you! Your order is being placed for fulfillment.";
+    main.prepend(banner);
+  } else if (params.get("canceled") === "1") {
+    const banner = document.createElement("div");
+    banner.className = "order-banner order-banner-canceled";
+    banner.textContent = "Checkout canceled — no charge was made.";
+    main.prepend(banner);
+  }
+}
+
 document.getElementById("year").textContent = new Date().getFullYear();
+showOrderStatusBanner();
 loadProducts();

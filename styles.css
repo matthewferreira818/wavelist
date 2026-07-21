@@ -295,6 +295,37 @@ section {
   color: var(--text-muted);
 }
 
+.card-buy {
+  width: 100%;
+  margin-top: 14px;
+}
+
+.card-buy:disabled {
+  opacity: 0.6;
+  cursor: default;
+}
+
+.order-banner {
+  max-width: 1120px;
+  margin: 0 auto 24px;
+  padding: 14px 20px;
+  border-radius: var(--radius-md);
+  font-size: 14px;
+  text-align: center;
+}
+
+.order-banner-success {
+  background: rgba(34, 197, 94, 0.12);
+  border: 1px solid rgba(34, 197, 94, 0.35);
+  color: #4ade80;
+}
+
+.order-banner-canceled {
+  background: rgba(255, 255, 255, 0.05);
+  border: 1px solid var(--border);
+  color: var(--text-muted);
+}
+
 .empty-state {
   grid-column: 1 / -1;
   text-align: center;
