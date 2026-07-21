@@ -96,8 +96,52 @@ Each entry looks like:
 No build step or restart is required — the page re-fetches `products.json`
 on every load.
 
-## Checkout / payments
+## Checkout / payments (live)
 
-Not implemented yet. The site is a browsable catalog only — there's no cart
-or way to actually buy anything. See the project notes for what's needed to
-add real checkout (Stripe account + serverless function + CJ order API).
+Each product card has a "Buy now" button that:
+1. Calls the `checkout-worker` (Cloudflare Worker, deployed at
+   https://wavelist-checkout.wavelist-mf818.workers.dev) with the product id.
+2. The Worker looks the product up in the live `products.json` (never trusts
+   client-supplied price), creates a **live** Stripe Checkout Session, and
+   returns the redirect URL.
+3. Customer pays on Stripe's hosted checkout page (card + shipping address).
+4. Stripe sends a `checkout.session.completed` webhook back to the Worker,
+   which verifies the signature and places the matching order with CJ
+   Dropshipping (`payType=2`, auto-deducted from your CJ account balance) so
+   it actually ships.
+
+**This uses real Stripe live-mode payments — real money moves.**
+
+### Required before taking real sales
+- **Your CJ Dropshipping account balance must be funded.** Order fulfillment
+  auto-deducts the wholesale cost from your CJ balance on every sale
+  (`payType=2` in `checkout-worker/src/index.js`). If the balance is
+  insufficient, Stripe will have collected the customer's payment but CJ
+  will **not** ship the item — fund this before announcing the store.
+
+### Worker project layout
+- `checkout-worker/src/index.js` — both endpoints (`/create-checkout-session`,
+  `/webhook`)
+- `checkout-worker/wrangler.toml` — Worker config + KV namespace binding
+  (`ORDERS_KV`, used to make webhook processing idempotent against Stripe's
+  retries)
+- Secrets (`STRIPE_SECRET_KEY`, `STRIPE_WEBHOOK_SECRET`, `CJ_API_KEY`) live in
+  Cloudflare, not in this repo. To rotate:
+  ```
+  cd checkout-worker
+  npx wrangler secret put STRIPE_SECRET_KEY
+  npx wrangler secret put STRIPE_WEBHOOK_SECRET
+  npx wrangler secret put CJ_API_KEY
+  npx wrangler deploy
+  ```
+- To check a specific order's fulfillment result: it's stored in the
+  `ORDERS_KV` namespace keyed by the Stripe Checkout Session id
+  (`npx wrangler kv key get <session_id> --binding ORDERS_KV --remote`).
+
+### Known limitations
+- Only ships to the US (`shipping_address_collection` in the Worker).
+- No inventory/stock check against CJ before accepting payment — if a
+  product goes out of stock at CJ between page load and purchase, the CJ
+  order call will fail (logged in `ORDERS_KV`, not currently surfaced back
+  to the customer or you — check KV or Worker logs periodically for now).
+- No refund automation — refunds are manual via the Stripe dashboard.
