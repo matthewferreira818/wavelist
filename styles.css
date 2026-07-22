@@ -379,6 +379,17 @@ section {
   font-size: 14px;
 }
 
+.how-card a,
+.footer a {
+  color: var(--accent-a);
+  font-weight: 600;
+}
+
+.how-card a:hover,
+.footer a:hover {
+  text-decoration: underline;
+}
+
 /* FAQ */
 .faq-list {
   display: flex;
