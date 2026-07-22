@@ -125,12 +125,37 @@ def select_rotating(pool: list[dict], prev_ids: set[str]) -> list[dict]:
 
 MAX_NAME_LENGTH = 55
 
+# Pure marketing/SEO puffery that never describes the physical product.
+# Dropped from titles (case-insensitive, whole words).
+FILLER_WORDS = {
+    "hot", "selling", "sale", "hotsale", "wholesale", "fashion",
+    "trendy", "brand", "quality", "product", "products", "item",
+}
+
+
+def _dedupe_key(word: str) -> str:
+    """Normalize a word for duplicate detection: lowercase, strip trailing
+    punctuation, and fold simple plurals so 'Jacket' == 'Jackets'."""
+    w = word.lower().strip(".,;:")
+    if len(w) > 3 and w.endswith("s"):
+        w = w[:-1]
+    return w
+
 
 def clean_name(name: str) -> str:
-    name = " ".join((name or "").split())  # collapse whitespace
-    if len(name) <= MAX_NAME_LENGTH:
-        return name
-    truncated = name[:MAX_NAME_LENGTH].rsplit(" ", 1)[0]
+    words = " ".join((name or "").split()).split(" ")
+    out, seen = [], set()
+    for w in words:
+        key = _dedupe_key(w)
+        if not key or key in FILLER_WORDS or key in seen:
+            continue  # drop filler puffery and repeated words (incl. plurals)
+        seen.add(key)
+        out.append(w)
+
+    cleaned = " ".join(out).strip() or " ".join((name or "").split())
+    if len(cleaned) <= MAX_NAME_LENGTH:
+        return cleaned
+    truncated = cleaned[:MAX_NAME_LENGTH].rsplit(" ", 1)[0]
     return truncated + "…"
 
 
