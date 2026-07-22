@@ -1,16 +1,16 @@
 :root {
-  --bg: #0a0a0f;
-  --bg-elevated: #121218;
-  --border: rgba(255, 255, 255, 0.08);
-  --text: #f4f4f6;
-  --text-muted: #9a9aa8;
-  --accent-a: #6366f1;
-  --accent-b: #ec4899;
+  --bg: #fff9f2;
+  --bg-elevated: #ffffff;
+  --border: rgba(40, 26, 46, 0.1);
+  --text: #2a1a2e;
+  --text-muted: #7a6a72;
+  --accent-a: #e11d48;
+  --accent-b: #f59e0b;
   --radius-sm: 8px;
   --radius-md: 12px;
   --radius-lg: 20px;
-  --shadow-sm: 0 1px 2px rgba(0, 0, 0, 0.4);
-  --shadow-md: 0 1px 2px rgba(0, 0, 0, 0.4), 0 8px 24px -8px rgba(0, 0, 0, 0.55);
+  --shadow-sm: 0 1px 2px rgba(40, 26, 46, 0.06);
+  --shadow-md: 0 1px 2px rgba(40, 26, 46, 0.08), 0 12px 30px -10px rgba(225, 29, 72, 0.28);
 }
 
 * {
@@ -49,7 +49,7 @@ summary:focus-visible,
   top: 0;
   z-index: 50;
   backdrop-filter: blur(12px);
-  background: rgba(10, 10, 15, 0.75);
+  background: rgba(255, 249, 242, 0.82);
   border-bottom: 1px solid var(--border);
   box-shadow: var(--shadow-sm);
 }
@@ -140,7 +140,17 @@ summary:focus-visible,
   padding: 96px 24px 72px;
   text-align: center;
   background:
-    radial-gradient(600px circle at 50% 0%, rgba(99, 102, 241, 0.18), transparent 60%);
+    radial-gradient(620px circle at 50% -5%, rgba(245, 158, 11, 0.22), transparent 60%),
+    radial-gradient(520px circle at 12% 8%, rgba(225, 29, 72, 0.16), transparent 58%),
+    radial-gradient(520px circle at 88% 4%, rgba(139, 92, 246, 0.16), transparent 58%);
+}
+
+.brand-accent {
+  background: linear-gradient(120deg, var(--accent-a), var(--accent-b));
+  -webkit-background-clip: text;
+  background-clip: text;
+  -webkit-text-fill-color: transparent;
+  color: transparent;
 }
 
 .hero-inner {
@@ -220,7 +230,7 @@ section {
 
 .card:hover {
   transform: translateY(-4px);
-  border-color: rgba(255, 255, 255, 0.18);
+  border-color: rgba(225, 29, 72, 0.35);
   box-shadow: var(--shadow-md);
 }
 
@@ -247,7 +257,8 @@ section {
   left: 10px;
   font-size: 12px;
   font-weight: 600;
-  background: rgba(0, 0, 0, 0.35);
+  color: #ffffff;
+  background: rgba(0, 0, 0, 0.4);
   padding: 4px 10px;
   border-radius: 999px;
   backdrop-filter: blur(4px);
@@ -315,13 +326,13 @@ section {
 }
 
 .order-banner-success {
-  background: rgba(34, 197, 94, 0.12);
-  border: 1px solid rgba(34, 197, 94, 0.35);
-  color: #4ade80;
+  background: rgba(34, 197, 94, 0.14);
+  border: 1px solid rgba(34, 197, 94, 0.4);
+  color: #15803d;
 }
 
 .order-banner-canceled {
-  background: rgba(255, 255, 255, 0.05);
+  background: rgba(40, 26, 46, 0.04);
   border: 1px solid var(--border);
   color: var(--text-muted);
 }
