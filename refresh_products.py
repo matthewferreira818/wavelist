@@ -10,6 +10,7 @@ Requires a .env file (same folder) containing:
 
 import hashlib
 import json
+import math
 import os
 import re
 import urllib.request
@@ -27,12 +28,44 @@ DISPLAY_COUNT = 13   # products shown on the site each cycle
 POOL_SIZE = 60       # how many trending products to pull, to rotate a fresh selection from
 MAX_REPEATS = 3      # at most this many items may carry over from the previous cycle
                      # -> guarantees at least (DISPLAY_COUNT - MAX_REPEATS) = 10 items change each cycle
-MARKUP_MULTIPLIER = 1.6  # used only as a margin floor: displayed price never drops below supplier cost * this
+MARKUP_MULTIPLIER = 1.6  # legacy wholesale-only floor (cost * this). Kept as an
+                          # extra always-on safety margin on top of the real
+                          # profit guarantee below; for cost > ~$16.80 this
+                          # multiplier actually becomes the binding floor.
 
-# Retail-looking price points spanning ~$4-$25. Each product is assigned one
+# --- No-loss guarantee -------------------------------------------------
+# A sale's true cost has THREE parts, and pricing must cover all three:
+#   1. CJ wholesale cost         -- known per product (`cost` below)
+#   2. CJ fulfillment shipping   -- auto-charged to the CJ balance per order,
+#      NOT known until checkout. We price for a conservative worst case so
+#      the real charge can never exceed what we've already priced for.
+#   3. Stripe's transaction fee  -- 2.9% of the charge + $0.30 fixed
+#
+# STRIPE_PCT_FEE / STRIPE_FIXED_FEE: Stripe's published fee schedule.
+#
+# CJ_SHIPPING_WORST_CASE: conservative ceiling on CJ shipping cost to the
+# US/Canada for light trending dropship goods. CJ's standard/ePacket-class
+# shipping for small parcels typically runs $2-6, occasionally $6-8 for
+# bulkier items, remote provinces, or peak-season surcharges. We price for
+# $8.00 -- the top of that observed range -- so real per-order shipping
+# charges are covered even in the worst case we've seen.
+#
+# MIN_NET_MARGIN: minimum guaranteed profit per unit after ALL of the above,
+# so "profitable" isn't a razor's-edge $0.01 that rounding/misc fees/exchange
+# -rate slop could wipe out.
+STRIPE_PCT_FEE = 0.029
+STRIPE_FIXED_FEE = 0.30
+CJ_SHIPPING_WORST_CASE = 8.00
+MIN_NET_MARGIN = 1.00
+
+# Retail-looking price points, raised from the old $4-$25 spread because the
+# floor below (shipping + fees + margin, not just wholesale cost) genuinely
+# requires it -- at $8 worst-case shipping alone, nothing under ~$9.60 can
+# ever be guaranteed profitable, so keeping price points below that would
+# just mean they're silently never used. Each product is assigned one
 # deterministically from its SKU (so its price is stable across cycles), then
-# raised to protect margin if the supplier cost would exceed it.
-PRICE_LADDER = [4.99, 6.99, 8.99, 10.99, 12.99, 14.99, 16.99, 18.99, 21.99, 24.99]
+# raised to whichever margin floor is higher if the supplier cost demands it.
+PRICE_LADDER = [9.99, 11.99, 13.99, 15.99, 18.99, 21.99, 24.99, 27.99, 31.99, 35.99]
 
 GRADIENTS = [
     "linear-gradient(135deg, #6366f1, #ec4899)",
@@ -85,14 +118,41 @@ def product_id(p: dict) -> str:
     return p.get("sku") or p.get("id") or ""
 
 
-def assign_price(sku: str, marked_up_cost: float) -> float:
+def min_profitable_price(cost: float) -> float:
+    """The lowest price that GUARANTEES the store does not lose money on a
+    sale, even in the worst case, once every real cost is counted: CJ
+    wholesale cost, worst-case CJ shipping, Stripe's fee, and a minimum
+    profit cushion. Solves for `price` in:
+
+        price - (price * STRIPE_PCT_FEE + STRIPE_FIXED_FEE)
+              - cost - CJ_SHIPPING_WORST_CASE >= MIN_NET_MARGIN
+    """
+    needed = cost + CJ_SHIPPING_WORST_CASE + STRIPE_FIXED_FEE + MIN_NET_MARGIN
+    return needed / (1 - STRIPE_PCT_FEE)
+
+
+def assign_price(sku: str, cost: float) -> float:
     """Pick a stable, varied retail price for a product from PRICE_LADDER,
-    never dropping below the marked-up supplier cost (margin protection)."""
+    never dropping below whichever margin floor is higher:
+      - the legacy wholesale-only floor (cost * MARKUP_MULTIPLIER), or
+      - min_profitable_price(cost), which additionally guarantees coverage
+        of Stripe's fee and worst-case CJ shipping.
+    This is what guarantees every sale is profitable even in the worst case.
+    Price is still chosen deterministically from the SKU first (stable
+    per-SKU price across refresh cycles), and only bumped up if the floor
+    demands it."""
+    floor = max(cost * MARKUP_MULTIPLIER, min_profitable_price(cost))
     h = int(hashlib.sha256((sku or "x").encode()).hexdigest(), 16)
     price = PRICE_LADDER[h % len(PRICE_LADDER)]
-    if price < marked_up_cost:
-        higher = [p for p in PRICE_LADDER if p >= marked_up_cost]
-        price = higher[0] if higher else PRICE_LADDER[-1]
+    if price < floor:
+        higher = [p for p in PRICE_LADDER if p >= floor]
+        if higher:
+            price = higher[0]
+        else:
+            # Even the top of the ladder can't guarantee a profit on this
+            # (unusually expensive) item. Break the ladder rather than ever
+            # risk a loss -- round up to the cent so the floor is cleared.
+            price = math.ceil(floor * 100) / 100
     return price
 
 
@@ -235,13 +295,12 @@ def to_site_products(cj_products: list[dict]) -> list[dict]:
     for i, p in enumerate(cj_products):
         category, emoji = classify_name(p.get("nameEn", ""))
         cost_price = parse_price(p.get("nowPrice") or p.get("sellPrice"))
-        marked_up_cost = round(cost_price * MARKUP_MULTIPLIER, 2)
         sku = product_id(p) or f"cj{i}"
         site_products.append({
             "id": sku,
             "name": clean_name(p.get("nameEn", "Untitled product")),
             "category": category,
-            "price": assign_price(sku, marked_up_cost),
+            "price": assign_price(sku, cost_price),
             "trendScore": normalize_trend_score(int(p.get("listedNum", 0)), listed_nums),
             "badge": "🔥 Trending",
             "emoji": emoji,
