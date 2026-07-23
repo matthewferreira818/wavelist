@@ -19,7 +19,7 @@ HERE = Path(__file__).parent
 PRODUCTS_FILE = HERE / "products.json"
 OUT_DIR = HERE / "marketing"
 OUT_FILE = OUT_DIR / "latest-posts.md"
-LINK = "https://matthewferreira818.github.io/hotstuff/"
+LINK = "https://hotstufffinds.com/"
 
 
 def pick(options, sku):

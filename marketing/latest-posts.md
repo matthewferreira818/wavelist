@@ -1,6 +1,6 @@
 # HotsTuff — This Cycle's Posts (auto-generated)
 
-_Generated 2026-07-23 from the current lineup (13 products). Replace `[LINK]` with_ **https://matthewferreira818.github.io/hotstuff/**
+_Generated 2026-07-23 from the current lineup (13 products). Replace `[LINK]` with_ **https://hotstufffinds.com/**
 
 > Tone: upbeat + clean on Twitter/Facebook, fun + casual on TikTok. Post these over the next ~3 days (until the catalog rotates and this file updates). Stagger times, reply to comments. Shipping is ~1–3 weeks — never promise faster.
 

@@ -1,5 +1,14 @@
-const ALLOWED_ORIGIN = "https://matthewferreira818.github.io";
-const PRODUCTS_URL = "https://matthewferreira818.github.io/hotstuff/products.json";
+const SITE_URL = "https://hotstufffinds.com";
+// Origins allowed to call create-checkout-session (custom domain, www, and the
+// legacy github.io URL during the transition).
+const ALLOWED_ORIGINS = [
+  "https://hotstufffinds.com",
+  "https://www.hotstufffinds.com",
+  "https://matthewferreira818.github.io",
+];
+// Catalog fetched from raw.githubusercontent so it keeps working regardless of
+// which domain the site itself is served from.
+const PRODUCTS_URL = "https://raw.githubusercontent.com/matthewferreira818/hotstuff/master/products.json";
 const STRIPE_API = "https://api.stripe.com/v1";
 const CJ_AUTH_URL = "https://developers.cjdropshipping.com/api2.0/v1/authentication/getAccessToken";
 const CJ_ORDER_URL = "https://developers.cjdropshipping.com/api2.0/v1/shopping/order/createOrderV2";
@@ -10,18 +19,21 @@ const SHIP_COUNTRIES = [
   "SE", "NO", "DK", "FI", "BE", "AT", "CH", "PT", "PL", "MX", "JP", "SG", "AE",
 ];
 
-function corsHeaders() {
+function corsHeaders(request) {
+  const origin = request?.headers?.get("Origin") || "";
+  const allowed = ALLOWED_ORIGINS.includes(origin) ? origin : ALLOWED_ORIGINS[0];
   return {
-    "Access-Control-Allow-Origin": ALLOWED_ORIGIN,
+    "Access-Control-Allow-Origin": allowed,
     "Access-Control-Allow-Methods": "POST, OPTIONS",
     "Access-Control-Allow-Headers": "Content-Type",
+    "Vary": "Origin",
   };
 }
 
-function jsonResponse(obj, status) {
+function jsonResponse(obj, status, request) {
   return new Response(JSON.stringify(obj), {
     status,
-    headers: { "Content-Type": "application/json", ...corsHeaders() },
+    headers: { "Content-Type": "application/json", ...corsHeaders(request) },
   });
 }
 
@@ -30,7 +42,7 @@ export default {
     const url = new URL(request.url);
 
     if (request.method === "OPTIONS") {
-      return new Response(null, { headers: corsHeaders() });
+      return new Response(null, { headers: corsHeaders(request) });
     }
 
     if (url.pathname === "/create-checkout-session" && request.method === "POST") {
@@ -53,14 +65,14 @@ async function handleCreateCheckoutSession(request, env) {
   try {
     const { productId } = await request.json();
     if (!productId) {
-      return jsonResponse({ error: "productId required" }, 400);
+      return jsonResponse({ error: "productId required" }, 400, request);
     }
 
     const productsRes = await fetch(PRODUCTS_URL, { cf: { cacheTtl: 0 } });
     const products = await productsRes.json();
     const product = products.find((p) => p.id === productId);
     if (!product) {
-      return jsonResponse({ error: "product not found" }, 404);
+      return jsonResponse({ error: "product not found" }, 404, request);
     }
 
     const params = new URLSearchParams();
@@ -72,8 +84,8 @@ async function handleCreateCheckoutSession(request, env) {
     }
     params.set("line_items[0][price_data][unit_amount]", String(Math.round(product.price * 100)));
     params.set("line_items[0][quantity]", "1");
-    params.set("success_url", "https://matthewferreira818.github.io/hotstuff/?success=1");
-    params.set("cancel_url", "https://matthewferreira818.github.io/hotstuff/?canceled=1");
+    params.set("success_url", `${SITE_URL}/?success=1`);
+    params.set("cancel_url", `${SITE_URL}/?canceled=1`);
     SHIP_COUNTRIES.forEach((c, i) =>
       params.set(`shipping_address_collection[allowed_countries][${i}]`, c)
     );
@@ -91,12 +103,12 @@ async function handleCreateCheckoutSession(request, env) {
 
     const session = await stripeRes.json();
     if (!stripeRes.ok) {
-      return jsonResponse({ error: session.error?.message || "stripe error" }, 502);
+      return jsonResponse({ error: session.error?.message || "stripe error" }, 502, request);
     }
 
-    return jsonResponse({ url: session.url }, 200);
+    return jsonResponse({ url: session.url }, 200, request);
   } catch (err) {
-    return jsonResponse({ error: String(err) }, 500);
+    return jsonResponse({ error: String(err) }, 500, request);
   }
 }
 

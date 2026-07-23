@@ -3,7 +3,7 @@
 A landing page for a storefront whose catalog changes based on what's currently
 trending — not a single fixed product.
 
-**Live site:** https://matthewferreira818.github.io/hotstuff/
+**Live site:** https://hotstufffinds.com/
 **Repo:** https://github.com/matthewferreira818/hotstuff
 
 Note: the checkout backend (Cloudflare Worker) keeps its internal name
