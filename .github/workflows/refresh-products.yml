@@ -25,14 +25,17 @@ jobs:
           CJ_API_KEY: ${{ secrets.CJ_API_KEY }}
         run: python refresh_products.py
 
-      - name: Commit and push if products.json changed
+      - name: Generate fresh social posts
+        run: python generate_posts.py
+
+      - name: Commit and push if anything changed
         run: |
-          if ! git diff --quiet -- products.json; then
+          git add products.json marketing/latest-posts.md
+          if ! git diff --cached --quiet; then
             git config user.name "wavelist-bot"
             git config user.email "actions@users.noreply.github.com"
-            git add products.json
-            git commit -m "Trending products refresh (3-day cycle)"
+            git commit -m "Refresh: trending products + social posts (3-day cycle)"
             git push
           else
-            echo "No changes to products.json"
+            echo "No changes"
           fi
