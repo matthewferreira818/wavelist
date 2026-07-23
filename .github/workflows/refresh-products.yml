@@ -29,6 +29,7 @@ jobs:
         run: python generate_posts.py
 
       - name: Commit and push if anything changed
+        id: commit
         run: |
           git add products.json marketing/latest-posts.md
           if ! git diff --cached --quiet; then
@@ -36,6 +37,19 @@ jobs:
             git config user.email "actions@users.noreply.github.com"
             git commit -m "Refresh: trending products + social posts (3-day cycle)"
             git push
+            echo "changed=true" >> "$GITHUB_OUTPUT"
           else
             echo "No changes"
+            echo "changed=false" >> "$GITHUB_OUTPUT"
           fi
+
+      - name: Tweet the fresh drop (skips until X API secrets are configured)
+        if: steps.commit.outputs.changed == 'true'
+        env:
+          X_API_KEY: ${{ secrets.X_API_KEY }}
+          X_API_SECRET: ${{ secrets.X_API_SECRET }}
+          X_ACCESS_TOKEN: ${{ secrets.X_ACCESS_TOKEN }}
+          X_ACCESS_TOKEN_SECRET: ${{ secrets.X_ACCESS_TOKEN_SECRET }}
+        run: |
+          pip install --quiet requests requests-oauthlib
+          python post_refresh_tweet.py
