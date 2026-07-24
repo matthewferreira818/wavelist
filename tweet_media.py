@@ -50,6 +50,47 @@ def _font(size, bold=False):
     return ImageFont.load_default()
 
 
+def _bezier(p0, p1, p2, p3, steps=40):
+    pts = []
+    for i in range(steps + 1):
+        t = i / steps
+        mt = 1 - t
+        pts.append((mt**3 * p0[0] + 3 * mt**2 * t * p1[0] + 3 * mt * t**2 * p2[0] + t**3 * p3[0],
+                    mt**3 * p0[1] + 3 * mt**2 * t * p1[1] + 3 * mt * t**2 * p2[1] + t**3 * p3[1]))
+    return pts
+
+
+def _flame_points(x, y, w, h, flip=False):
+    """Brand flame silhouette (same path as the X logo) scaled into a box."""
+    segs = [
+        ((0.58, 0.00), (0.42, 0.10), (0.28, 0.22), (0.20, 0.36)),
+        ((0.20, 0.36), (0.12, 0.50), (0.06, 0.60), (0.08, 0.72)),
+        ((0.08, 0.72), (0.10, 0.88), (0.28, 1.00), (0.50, 1.00)),
+        ((0.50, 1.00), (0.74, 1.00), (0.92, 0.88), (0.92, 0.68)),
+        ((0.92, 0.68), (0.92, 0.55), (0.84, 0.50), (0.80, 0.40)),
+        ((0.80, 0.40), (0.76, 0.30), (0.72, 0.26), (0.74, 0.18)),
+        ((0.74, 0.18), (0.72, 0.10), (0.66, 0.04), (0.58, 0.00)),
+    ]
+    pts = []
+    for p0, p1, p2, p3 in segs:
+        pts.extend(_bezier(p0, p1, p2, p3)[:-1])
+    if flip:
+        pts = [(1 - px, py) for px, py in pts]
+    return [(x + px * w, y + py * h) for px, py in pts]
+
+
+def draw_flame(draw, x, y, h, outer=ACCENT, inner="#f59e0b", core=BG):
+    """Draw the layered brand flame at height h; returns its width."""
+    w = h * 0.84
+    draw.polygon(_flame_points(x, y, w, h), fill=outer)
+    iw, ih = w * 0.60, h * 0.55
+    draw.polygon(_flame_points(x + (w - iw) / 2, y + h - ih * 1.02, iw, ih, flip=True),
+                 fill=inner)
+    cw, ch = w * 0.32, h * 0.28
+    draw.polygon(_flame_points(x + (w - cw) / 2, y + h - ch * 1.06, cw, ch), fill=core)
+    return w
+
+
 def _fit_text(draw, text, font_size, bold, max_width):
     """Return (text, font) shrunk/ellipsized until it fits max_width."""
     font = _font(font_size, bold)
@@ -71,8 +112,9 @@ def build_ad_card(product):
     canvas = Image.new("RGB", (CARD, CARD), BG)
     draw = ImageDraw.Draw(canvas)
 
-    # header: wordmark left, site right
-    draw.text((48, 34), "HotsTuff", font=_font(68, True), fill=ACCENT)
+    # header: flame + wordmark left, site right
+    fw = draw_flame(draw, 44, 26, 84)
+    draw.text((44 + fw + 16, 34), "HotsTuff", font=_font(68, True), fill=ACCENT)
     site_font = _font(32)
     draw.text((CARD - 48 - draw.textlength(SITE, font=site_font), 62),
               SITE, font=site_font, fill=MUTED)
@@ -130,8 +172,11 @@ def build_qr_card():
     canvas = Image.new("RGB", (900, 1000), "#ffffff")
     draw = ImageDraw.Draw(canvas)
     wm_font = _font(58, True)
-    draw.text(((900 - draw.textlength("HotsTuff", font=wm_font)) // 2, 42),
-              "HotsTuff", font=wm_font, fill=ACCENT)
+    fh = 74
+    total = fh * 0.84 + 14 + draw.textlength("HotsTuff", font=wm_font)
+    x0 = (900 - total) // 2
+    fw = draw_flame(draw, x0, 32, fh, core="#ffffff")
+    draw.text((x0 + fw + 14, 42), "HotsTuff", font=wm_font, fill=ACCENT)
     canvas.paste(qr, ((900 - qr.width) // 2, 140))
     scan_font = _font(48, True)
     draw.text(((900 - draw.textlength("Scan to shop", font=scan_font)) // 2, 838),
