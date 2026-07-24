@@ -21,7 +21,7 @@ from pathlib import Path
 
 HERE = Path(__file__).parent
 PRODUCTS_FILE = HERE / "products.json"
-LINK = "hotstufffinds.com"
+LINK = "findhotstuff.com"
 MAX_TWEET = 280
 
 CREDS = ["X_API_KEY", "X_API_SECRET", "X_ACCESS_TOKEN", "X_ACCESS_TOKEN_SECRET"]

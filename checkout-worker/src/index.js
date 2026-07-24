@@ -1,7 +1,9 @@
-const SITE_URL = "https://hotstufffinds.com";
+const SITE_URL = "https://findhotstuff.com";
 // Origins allowed to call create-checkout-session (custom domain, www, and the
 // legacy github.io URL during the transition).
 const ALLOWED_ORIGINS = [
+  "https://findhotstuff.com",
+  "https://www.findhotstuff.com",
   "https://hotstufffinds.com",
   "https://www.hotstufffinds.com",
   "https://matthewferreira818.github.io",
