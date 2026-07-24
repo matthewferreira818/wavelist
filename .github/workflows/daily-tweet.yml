@@ -1,9 +1,16 @@
-name: Daily product spotlight (X + Instagram)
+name: Product spotlight 3x daily (X + Instagram)
 
 on:
   schedule:
-    - cron: "0 16 * * *"  # daily 16:00 UTC (~noon ET) — good engagement window
-  workflow_dispatch: {}
+    - cron: "0 13 * * *"  # morning slot  (~10am Atlantic)
+    - cron: "0 17 * * *"  # afternoon slot (~2pm Atlantic)
+    - cron: "0 21 * * *"  # evening slot  (~6pm Atlantic)
+  workflow_dispatch:
+    inputs:
+      offset:
+        description: "Shift the product pick (test runs use 1 to avoid duplicates)"
+        required: false
+        default: "0"
 
 permissions:
   contents: read
@@ -17,11 +24,12 @@ jobs:
         with:
           fetch-depth: 50
 
-      - name: Skip if the refresh roundup already tweeted today
+      - name: Skip the morning slot on refresh days (roundup covers it)
         id: gate
         run: |
-          if git log --since=midnight --oneline | grep -q "Refresh: trending products"; then
-            echo "Catalog refreshed today — the fresh-drops roundup covers it. Skipping spotlight."
+          HOUR=$(date -u +%H)
+          if [ "$HOUR" -lt 15 ] && git log --since=midnight --oneline | grep -q "Refresh: trending products"; then
+            echo "Catalog refreshed today — the fresh-drops roundup covers the morning slot. Skipping."
             echo "post=false" >> "$GITHUB_OUTPUT"
           else
             echo "post=true" >> "$GITHUB_OUTPUT"
@@ -32,19 +40,20 @@ jobs:
         with:
           python-version: "3.12"
 
-      - name: Post today's spotlight
+      - name: Post this slot's spotlight (ad card + QR reply)
         if: steps.gate.outputs.post == 'true'
         env:
           X_API_KEY: ${{ secrets.X_API_KEY }}
           X_API_SECRET: ${{ secrets.X_API_SECRET }}
           X_ACCESS_TOKEN: ${{ secrets.X_ACCESS_TOKEN }}
           X_ACCESS_TOKEN_SECRET: ${{ secrets.X_ACCESS_TOKEN_SECRET }}
+          SPOTLIGHT_OFFSET: ${{ inputs.offset }}
         run: |
-          pip install --quiet requests requests-oauthlib
+          pip install --quiet requests requests-oauthlib pillow segno
           python post_daily_tweet.py 2>&1 | tee tweet.log
 
-      - name: Post today's Instagram photo (skips until IG secrets are configured)
-        if: steps.gate.outputs.post == 'true'
+      - name: Post today's Instagram photo (afternoon slot only; skips until IG secrets are configured)
+        if: steps.gate.outputs.post == 'true' && (github.event.schedule == '0 17 * * *' || github.event_name == 'workflow_dispatch')
         env:
           IG_USER_ID: ${{ secrets.IG_USER_ID }}
           IG_ACCESS_TOKEN: ${{ secrets.IG_ACCESS_TOKEN }}
@@ -59,7 +68,7 @@ jobs:
             if ! gh issue list --state open --search "X credits depleted" --json number --jq length | grep -qv '^0$'; then
               gh issue create \
                 --title "🔴 X credits depleted — daily tweets are paused" \
-                --body "The daily spotlight tweet failed with HTTP 402 (credits depleted). Top up at https://console.x.com (Buy Credits) and tweets resume automatically on the next run. No other store systems are affected."
+                --body "A spotlight tweet failed with HTTP 402 (credits depleted). Top up at https://console.x.com (Buy Credits) and tweets resume automatically on the next run. Note: the bot now posts 3 spotlights + 3 QR replies a day (~180 posts/mo), so credits go ~6x faster than the old 1-a-day setup. No other store systems are affected."
             else
               echo "Depletion issue already open — not duplicating."
             fi

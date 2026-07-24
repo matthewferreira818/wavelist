@@ -52,7 +52,7 @@ jobs:
           X_ACCESS_TOKEN: ${{ secrets.X_ACCESS_TOKEN }}
           X_ACCESS_TOKEN_SECRET: ${{ secrets.X_ACCESS_TOKEN_SECRET }}
         run: |
-          pip install --quiet requests requests-oauthlib
+          pip install --quiet requests requests-oauthlib pillow segno
           python post_refresh_tweet.py 2>&1 | tee tweet.log
 
       - name: Credit watch — alert if X credits are depleted
